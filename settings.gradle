@@ -1,0 +1,2 @@
+rootProject.name = "DTAurora900"
+include ':app'
