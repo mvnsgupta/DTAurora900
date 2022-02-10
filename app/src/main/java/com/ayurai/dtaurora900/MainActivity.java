@@ -2,18 +2,14 @@ package com.ayurai.dtaurora900;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-
-
 import android.app.Activity;
 import android.content.Context;
-import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
@@ -27,7 +23,6 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -37,22 +32,20 @@ import androidx.annotation.Nullable;
 import com.deptrum.usblite.callback.IDeviceListener;
 import com.deptrum.usblite.callback.IStreamListener;
 import com.deptrum.usblite.param.DTFrameStreamBean;
-//import com.deptrum.usblite.param.DeviceLoggerInfo;
+import com.deptrum.usblite.param.DeviceLoggerInfo;
 import com.deptrum.usblite.param.StreamParam;
 import com.deptrum.usblite.param.StreamType;
 import com.deptrum.usblite.param.TemperatureType;
 import com.deptrum.usblite.sdk.DeptrumSdkApi;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+
 
 public class MainActivity extends AppCompatActivity {
     public static final int MESSAGE_UI = 0x01;
@@ -186,13 +179,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void getDebugInfo(){
-//        DeviceLoggerInfo loggerInfo = new DeviceLoggerInfo();
-//        DeptrumSdkApi.getApi().getDeviceDebugInfo(loggerInfo);
+        DeviceLoggerInfo loggerInfo = new DeviceLoggerInfo();
+        DeptrumSdkApi.getApi().getDeviceDebugInfo(loggerInfo);
 
         tv_debug.post(new Runnable() {
             @Override
             public void run() {
-//                tv_debug.setText(loggerInfo.toString());
+                tv_debug.setText(loggerInfo.toString());
             }
         });
     }
@@ -216,14 +209,14 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public boolean onLongClick(View v) {
             if (isInDoor){
-//                    if (0 == DeptrumSdkApi.getApi().setLaserDriver(3)){
-                Toast.makeText(MainActivity.this, "已经切换到室外模式", Toast.LENGTH_SHORT).show();
-//                    }
+                if (0 == DeptrumSdkApi.getApi().setLaserDriver(3)){
+                    Toast.makeText(MainActivity.this, "已经切换到室外模式", Toast.LENGTH_SHORT).show();
+                }
             }
             else {
-//                    if (0 == DeptrumSdkApi.getApi().setLaserDriver(2)){
-                Toast.makeText(MainActivity.this, "已经切换到室内模式", Toast.LENGTH_SHORT).show();
-//                    }
+                if (0 == DeptrumSdkApi.getApi().setLaserDriver(2)){
+                    Toast.makeText(MainActivity.this, "已经切换到室内模式", Toast.LENGTH_SHORT).show();
+                }
             }
             isInDoor = (!isInDoor);
             return false;
@@ -425,6 +418,10 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
 
+            @Override
+            public void onErrorEvent(String s, int i) {
+
+            }
         });
     }
 
@@ -927,4 +924,4 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    }
+}
