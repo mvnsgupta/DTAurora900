@@ -10,6 +10,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
@@ -38,6 +39,10 @@ import com.deptrum.usblite.param.StreamType;
 import com.deptrum.usblite.param.TemperatureType;
 import com.deptrum.usblite.sdk.DeptrumSdkApi;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Timer;
@@ -48,7 +53,9 @@ import java.util.concurrent.Executors;
 
 
 public class MainActivity extends AppCompatActivity {
+
     public static final int MESSAGE_UI = 0x01;
+    private static final String TAG = "Depth_DTAurora900";
     private long mDrawRgbTime;
     private int mRgbCount = 0;
     private long mDrawDepTime;
@@ -260,7 +267,7 @@ public class MainActivity extends AppCompatActivity {
         DeptrumSdkApi.getApi().open(getApplicationContext(), new IDeviceListener() {
             @Override
             public void onAttach() {
-
+                
             }
 
             @Override
@@ -281,6 +288,7 @@ public class MainActivity extends AppCompatActivity {
                             }
 
                             byte[] data = iFrame.getData();
+
                             final long timestamp = iFrame.getFrameStamp();
                             switch (iFrame.getImageType()) {
                                 case RGB: {
@@ -368,7 +376,7 @@ public class MainActivity extends AppCompatActivity {
                                         mDepCount = 0;
                                     }
                                     mDepCount++;
-
+                                    Log.d(TAG, "onFrame: Depth"+ data);
                                     if (null == data || mPreviewSize.getWidth() * mPreviewSize.getHeight() * 2 != data.length) {
                                         return;
                                     }
@@ -385,9 +393,9 @@ public class MainActivity extends AppCompatActivity {
                                             short compare = (short) (data[i * 2 + 1] << 8 | (data[2 * i] & 0xff));
                                             if (compare > 20) {
                                                 mDeDataByte[i * 3] = 0;
-                                                mDeDataByte[i * 3 + 1] = 125;
+                                                mDeDataByte[i * 3 + 1] = (byte)(data[i * 2 + 1] << 8 | (data[2 * i] & 0xff));
                                             } else {
-                                                mDeDataByte[i * 3] = 125;
+                                                mDeDataByte[i * 3] = (byte) (data[i * 2 + 1] << 8 | (data[2 * i] & 0xff));
                                                 mDeDataByte[i * 3 + 1] = 0;
                                             }
                                             mDeDataByte[i * 3 + 2] = 0;
@@ -399,6 +407,7 @@ public class MainActivity extends AppCompatActivity {
                                                 @Override
                                                 public void run() {
                                                     mDepthView.setImageBitmap(mDepthBitmap);
+                                                    storeImage(timestamp,mDepthBitmap);
                                                 }
                                             });
                                         }
@@ -423,6 +432,27 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+    }
+
+    private void storeImage(long timestamp,Bitmap image) {
+        File folder=new File(Environment.getExternalStorageDirectory() + File.separator+"DepthMapFile" );
+        folder.mkdirs();
+        File pictureFile = new File(Environment.getExternalStorageDirectory() + File.separator+"DepthMapFile" + File.separator+ String.valueOf(timestamp) + "_depthMap.jpg");
+        if (pictureFile == null) {
+            Log.d(TAG, "Error creating media file, check storage permissions: ");// e.getMessage());
+            return;
+        }
+        Log.d(TAG, "storeImage: "+pictureFile);
+        try {
+            FileOutputStream fos = new FileOutputStream(pictureFile);
+            image.compress(Bitmap.CompressFormat.PNG, 90, fos);
+            fos.close();
+        } catch (FileNotFoundException e) {
+            Log.d(TAG, "File not found: " + e.getMessage());
+        } catch (IOException e) {
+            Log.d(TAG, "Error accessing file: " + e.getMessage());
+        }
+        Log.d(TAG, "storeImage: FileSaved");
     }
 
     private RelativeLayout initUI() {
