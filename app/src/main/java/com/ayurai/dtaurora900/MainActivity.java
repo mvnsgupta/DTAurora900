@@ -1,17 +1,16 @@
 package com.ayurai.dtaurora900;
-
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.text.TextUtils;
 import android.util.AttributeSet;
@@ -29,6 +28,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.deptrum.usblite.callback.IDeviceListener;
 import com.deptrum.usblite.callback.IStreamListener;
@@ -49,7 +49,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -61,9 +62,11 @@ public class MainActivity extends AppCompatActivity {
     private long mDrawDepTime;
     private int mDepCount = 0;
 
+    private RelativeLayout rootLayout;
     private ImageView mRGBView;
     private ImageView mIRView;
     private ImageView mDepthView;
+    private TextView tvCenterCount;
 
     private FaceView mFaceView;
 
@@ -108,6 +111,7 @@ public class MainActivity extends AppCompatActivity {
     private ExecutorService service = Executors.newSingleThreadExecutor();
 
     private boolean isInDoor = false;
+    long globalTimeStamp;
 
     private static Handler mHandler = new Handler() {
         @Override
@@ -164,6 +168,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     };
+    Bitmap globalDepthBitmap;
 
     private void exit(){
         DeptrumSdkApi.getApi().stopStream(StreamType.STREAM_RGB_IR_DEPTH);
@@ -290,6 +295,7 @@ public class MainActivity extends AppCompatActivity {
                             byte[] data = iFrame.getData();
 
                             final long timestamp = iFrame.getFrameStamp();
+                            globalTimeStamp=timestamp;
                             switch (iFrame.getImageType()) {
                                 case RGB: {
                                     long endTime = System.currentTimeMillis();
@@ -388,17 +394,24 @@ public class MainActivity extends AppCompatActivity {
                                         mDeDataByteLenght = mPreviewSize.getWidth() * mPreviewSize.getHeight() * 3;
 //                                        byte[] deDataByte = new byte[mPreviewSize.getWidth() * mPreviewSize.getHeight() * 3];
                                     }
+                                    File Data=new File("");
                                     service.execute(() ->{
                                         for (int i = 0; i < mPreviewSize.getWidth() * mPreviewSize.getHeight(); i++) {
                                             short compare = (short) (data[i * 2 + 1] << 8 | (data[2 * i] & 0xff));
-                                            if (compare > 20) {
-                                                mDeDataByte[i * 3] = 0;
+                                            Log.d(TAG, "onFrame: data[i * 2 + 1]                              "+data[i * 2 + 1]);
+                                            Log.d(TAG, "onFrame: data[i * 2 + 1] << 8                         "+(data[i * 2 + 1] << 8));
+                                            Log.d(TAG, "onFrame: (data[2 * i] & 0xff)                         "+(data[2 * i] & 0xff));
+                                            Log.d(TAG, "onFrame: (data[i * 2 + 1] << 8 | (data[2 * i] & 0xff) "+(data[i * 2 + 1] << 8 | (data[2 * i] & 0xff)));
+                                            if (compare > 25) {
+                                                mDeDataByte[i * 3] = (byte) ((byte)(data[i * 2 + 1] << 8 | (data[2 * i] & 0xff))-100);
                                                 mDeDataByte[i * 3 + 1] = (byte)(data[i * 2 + 1] << 8 | (data[2 * i] & 0xff));
+                                                mDeDataByte[i * 3 + 2] = (byte)(data[i * 2 + 1] << 8 | (data[2 * i] & 0xff)-50);
                                             } else {
-                                                mDeDataByte[i * 3] = (byte) (data[i * 2 + 1] << 8 | (data[2 * i] & 0xff));
+                                                mDeDataByte[i * 3] =0;
                                                 mDeDataByte[i * 3 + 1] = 0;
+                                                mDeDataByte[i * 3 + 2] = 0;
                                             }
-                                            mDeDataByte[i * 3 + 2] = 0;
+
                                         }
                                         int[] pixels = convertByteToColor(mDeDataByte);
                                         mDepthBitmap.setPixels(pixels, 0, mPreviewSize.getWidth(), 0, 0, mPreviewSize.getWidth(), mPreviewSize.getHeight());
@@ -407,7 +420,7 @@ public class MainActivity extends AppCompatActivity {
                                                 @Override
                                                 public void run() {
                                                     mDepthView.setImageBitmap(mDepthBitmap);
-                                                    storeImage(timestamp,mDepthBitmap);
+                                                    globalDepthBitmap=mDepthBitmap;
                                                 }
                                             });
                                         }
@@ -432,27 +445,6 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
-    }
-
-    private void storeImage(long timestamp,Bitmap image) {
-        File folder=new File(Environment.getExternalStorageDirectory() + File.separator+"DepthMapFile" );
-        folder.mkdirs();
-        File pictureFile = new File(Environment.getExternalStorageDirectory() + File.separator+"DepthMapFile" + File.separator+ String.valueOf(timestamp) + "_depthMap.jpg");
-        if (pictureFile == null) {
-            Log.d(TAG, "Error creating media file, check storage permissions: ");// e.getMessage());
-            return;
-        }
-        Log.d(TAG, "storeImage: "+pictureFile);
-        try {
-            FileOutputStream fos = new FileOutputStream(pictureFile);
-            image.compress(Bitmap.CompressFormat.PNG, 90, fos);
-            fos.close();
-        } catch (FileNotFoundException e) {
-            Log.d(TAG, "File not found: " + e.getMessage());
-        } catch (IOException e) {
-            Log.d(TAG, "Error accessing file: " + e.getMessage());
-        }
-        Log.d(TAG, "storeImage: FileSaved");
     }
 
     private RelativeLayout initUI() {
@@ -511,6 +503,15 @@ public class MainActivity extends AppCompatActivity {
         btnGetInfo.setOnClickListener(mOnGetInfoListener);
         btnGetInfo.setOnLongClickListener(mOnGetInfoLongListener);
 
+        Button saveImage= new Button(getApplicationContext());
+        saveImage.setText("Save Image");
+        saveImage.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                storeImage(globalTimeStamp,getDepthFrame());
+            }
+        });
+
         int buttonWidth = ((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 450, getResources().getDisplayMetrics()));
         RelativeLayout.LayoutParams textParams = new RelativeLayout.LayoutParams(buttonWidth, RelativeLayout.LayoutParams.WRAP_CONTENT);
         textParams.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, RelativeLayout.TRUE);
@@ -542,6 +543,11 @@ public class MainActivity extends AppCompatActivity {
         rootLayout.addView(mFaceView);
         return rootLayout;
     }
+
+    private Bitmap getDepthFrame() {
+        return globalDepthBitmap;
+    }
+
 
     /**
      * gray convert to rgba
@@ -952,6 +958,26 @@ public class MainActivity extends AppCompatActivity {
             this.mIRFace = face;
             invalidate();
         }
+    }
+    private void storeImage(long timestamp,Bitmap image) {
+        File folder=new File(Environment.getExternalStorageDirectory() + File.separator+"DepthMapFile" );
+        folder.mkdirs();
+        File pictureFile = new File(Environment.getExternalStorageDirectory() + File.separator+"DepthMapFile" + File.separator+ String.valueOf(timestamp) + "_depthMap.jpg");
+        if (pictureFile == null) {
+            Log.d(TAG, "Error creating media file, check storage permissions: ");// e.getMessage());
+            return;
+        }
+        Log.d(TAG, "storeImage: "+pictureFile);
+        try {
+            FileOutputStream fos = new FileOutputStream(pictureFile);
+            image.compress(Bitmap.CompressFormat.PNG, 90, fos);
+            fos.close();
+        } catch (FileNotFoundException e) {
+            Log.d(TAG, "File not found: " + e.getMessage());
+        } catch (IOException e) {
+            Log.d(TAG, "Error accessing file: " + e.getMessage());
+        }
+        Log.d(TAG, "storeImage: FileSaved");
     }
 
 }
