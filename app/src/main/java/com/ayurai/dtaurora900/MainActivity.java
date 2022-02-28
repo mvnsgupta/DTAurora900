@@ -535,6 +535,7 @@ public class MainActivity extends AppCompatActivity {
         linearLayout.addView(tv_debug);
         linearLayout.addView(btnExit);
         linearLayout.addView(btnGetInfo);
+        linearLayout.addView(saveImage);
 
         mFaceView.setLayoutParams(new LinearLayout.LayoutParams(displayWidth , displayHeight));
 
