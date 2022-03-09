@@ -44,6 +44,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -98,6 +99,8 @@ public class MainActivity extends AppCompatActivity {
 
     private byte[] mIrBits = null;
     private int mIrLength = 0;
+
+    private byte[] dataByte = null;
 
     private byte[] mRgbBits = null;
     private int mRgbLength = 0;
@@ -169,6 +172,8 @@ public class MainActivity extends AppCompatActivity {
         }
     };
     Bitmap globalDepthBitmap;
+    Bitmap globalRGBBitmap;
+    Bitmap globalIRBitmap;
 
     private void exit(){
         DeptrumSdkApi.getApi().stopStream(StreamType.STREAM_RGB_IR_DEPTH);
@@ -272,7 +277,7 @@ public class MainActivity extends AppCompatActivity {
         DeptrumSdkApi.getApi().open(getApplicationContext(), new IDeviceListener() {
             @Override
             public void onAttach() {
-                
+
             }
 
             @Override
@@ -337,6 +342,7 @@ public class MainActivity extends AppCompatActivity {
                                                 @Override
                                                 public void run() {
                                                     mRGBView.setImageBitmap(mRGBBitmap);
+                                                    globalRGBBitmap=mRGBBitmap;
                                                     mFaceView.setRGBFace(rectF);
                                                 }
                                             });
@@ -358,6 +364,7 @@ public class MainActivity extends AppCompatActivity {
                                                 @Override
                                                 public void run() {
                                                     mIRView.setImageBitmap(mIRBitmap);
+                                                    globalIRBitmap=mIRBitmap;
                                                     mFaceView.setIRFace(rectF);
                                                 }
                                             });
@@ -382,7 +389,8 @@ public class MainActivity extends AppCompatActivity {
                                         mDepCount = 0;
                                     }
                                     mDepCount++;
-                                    Log.d(TAG, "onFrame: Depth"+ data);
+//                                    Log.d(TAG, "onFrame: Depth"+ data);
+                                    dataByte = data;
                                     if (null == data || mPreviewSize.getWidth() * mPreviewSize.getHeight() * 2 != data.length) {
                                         return;
                                     }
@@ -398,14 +406,14 @@ public class MainActivity extends AppCompatActivity {
                                     service.execute(() ->{
                                         for (int i = 0; i < mPreviewSize.getWidth() * mPreviewSize.getHeight(); i++) {
                                             short compare = (short) (data[i * 2 + 1] << 8 | (data[2 * i] & 0xff));
-                                            Log.d(TAG, "onFrame: data[i * 2 + 1]                              "+data[i * 2 + 1]);
-                                            Log.d(TAG, "onFrame: data[i * 2 + 1] << 8                         "+(data[i * 2 + 1] << 8));
-                                            Log.d(TAG, "onFrame: (data[2 * i] & 0xff)                         "+(data[2 * i] & 0xff));
-                                            Log.d(TAG, "onFrame: (data[i * 2 + 1] << 8 | (data[2 * i] & 0xff) "+(data[i * 2 + 1] << 8 | (data[2 * i] & 0xff)));
+//                                            Log.d(TAG, "onFrame: data[i * 2 + 1]                              "+data[i * 2 + 1]);
+//                                            Log.d(TAG, "onFrame: data[i * 2 + 1] << 8                         "+(data[i * 2 + 1] << 8));
+//                                            Log.d(TAG, "onFrame: (data[2 * i] & 0xff)                         "+(data[2 * i] & 0xff));
+//                                            Log.d(TAG, "onFrame: (data[i * 2 + 1] << 8 | (data[2 * i] & 0xff) "+(data[i * 2 + 1] << 8 | (data[2 * i] & 0xff)));
                                             if (compare > 25) {
-                                                mDeDataByte[i * 3] = (byte) ((byte)(data[i * 2 + 1] << 8 | (data[2 * i] & 0xff))-100);
+//                                                mDeDataByte[i * 3] = (byte) ((byte)(data[i * 2 + 1] << 8 | (data[2 * i] & 0xff))-100);
                                                 mDeDataByte[i * 3 + 1] = (byte)(data[i * 2 + 1] << 8 | (data[2 * i] & 0xff));
-                                                mDeDataByte[i * 3 + 2] = (byte)(data[i * 2 + 1] << 8 | (data[2 * i] & 0xff)-50);
+//                                                mDeDataByte[i * 3 + 2] = (byte)(data[i * 2 + 1] << 8 | (data[2 * i] & 0xff)-50);
                                             } else {
                                                 mDeDataByte[i * 3] =0;
                                                 mDeDataByte[i * 3 + 1] = 0;
@@ -503,12 +511,30 @@ public class MainActivity extends AppCompatActivity {
         btnGetInfo.setOnClickListener(mOnGetInfoListener);
         btnGetInfo.setOnLongClickListener(mOnGetInfoLongListener);
 
-        Button saveImage= new Button(getApplicationContext());
-        saveImage.setText("Save Image");
-        saveImage.setOnClickListener(new View.OnClickListener() {
+        Button saveImageDepth= new Button(getApplicationContext());
+        saveImageDepth.setText("Save Depth Image");
+        saveImageDepth.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                storeImage(globalTimeStamp,getDepthFrame());
+                storeImageDepth(globalTimeStamp,getDepthFrame());
+            }
+        });
+
+        Button saveImageRGB= new Button(getApplicationContext());
+        saveImageRGB.setText("Save RGB Image");
+        saveImageRGB.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                storeImageRGB(globalTimeStamp,getRGBFrame());
+            }
+        });
+
+        Button saveImageIR= new Button(getApplicationContext());
+        saveImageIR.setText("Save IR Image");
+        saveImageIR.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                storeImageIR(globalTimeStamp,getIRFrame());
             }
         });
 
@@ -535,7 +561,9 @@ public class MainActivity extends AppCompatActivity {
         linearLayout.addView(tv_debug);
         linearLayout.addView(btnExit);
         linearLayout.addView(btnGetInfo);
-        linearLayout.addView(saveImage);
+        linearLayout.addView(saveImageDepth);
+        linearLayout.addView(saveImageRGB);
+        linearLayout.addView(saveImageIR);
 
         mFaceView.setLayoutParams(new LinearLayout.LayoutParams(displayWidth , displayHeight));
 
@@ -547,6 +575,14 @@ public class MainActivity extends AppCompatActivity {
 
     private Bitmap getDepthFrame() {
         return globalDepthBitmap;
+    }
+
+    private Bitmap getRGBFrame() {
+        return globalRGBBitmap;
+    }
+
+    private Bitmap getIRFrame() {
+        return globalIRBitmap;
     }
 
 
@@ -960,10 +996,52 @@ public class MainActivity extends AppCompatActivity {
             invalidate();
         }
     }
-    private void storeImage(long timestamp,Bitmap image) {
-        File folder=new File(Environment.getExternalStorageDirectory() + File.separator+"DepthMapFile" );
+    private void storeImageDepth(long timestamp,Bitmap image) {
+        File folder=new File(Environment.getExternalStorageDirectory() + File.separator+"Aurora900" );
         folder.mkdirs();
-        File pictureFile = new File(Environment.getExternalStorageDirectory() + File.separator+"DepthMapFile" + File.separator+ String.valueOf(timestamp) + "_depthMap.jpg");
+        File pictureFile = new File(Environment.getExternalStorageDirectory() + File.separator+"Aurora900" + File.separator+ String.valueOf(timestamp) + "_depthMap.jpg");
+        if (pictureFile == null) {
+            Log.d(TAG, "Error creating media file, check storage permissions: ");// e.getMessage());
+            return;
+        }
+        Log.d(TAG, "storeImage: "+pictureFile);
+        try {
+            FileOutputStream fos = new FileOutputStream(pictureFile);
+            image.compress(Bitmap.CompressFormat.PNG, 90, fos);
+            fos.close();
+        } catch (FileNotFoundException e) {
+            Log.d(TAG, "File not found: " + e.getMessage());
+        } catch (IOException e) {
+            Log.d(TAG, "Error accessing file: " + e.getMessage());
+        }
+        Log.d(TAG, "storeImage: FileSaved");
+    }
+
+    private void storeImageRGB(long timestamp,Bitmap image) {
+        File folder=new File(Environment.getExternalStorageDirectory() + File.separator+"Aurora900" );
+        folder.mkdirs();
+        File pictureFile = new File(Environment.getExternalStorageDirectory() + File.separator+"Aurora900" + File.separator+ String.valueOf(timestamp) + "_RGBMap.jpg");
+        if (pictureFile == null) {
+            Log.d(TAG, "Error creating media file, check storage permissions: ");// e.getMessage());
+            return;
+        }
+        Log.d(TAG, "storeImage: "+pictureFile);
+        try {
+            FileOutputStream fos = new FileOutputStream(pictureFile);
+            image.compress(Bitmap.CompressFormat.PNG, 90, fos);
+            fos.close();
+        } catch (FileNotFoundException e) {
+            Log.d(TAG, "File not found: " + e.getMessage());
+        } catch (IOException e) {
+            Log.d(TAG, "Error accessing file: " + e.getMessage());
+        }
+        Log.d(TAG, "storeImage: FileSaved");
+    }
+
+    private void storeImageIR(long timestamp,Bitmap image) {
+        File folder=new File(Environment.getExternalStorageDirectory() + File.separator+"Aurora900" );
+        folder.mkdirs();
+        File pictureFile = new File(Environment.getExternalStorageDirectory() + File.separator+"Aurora900" + File.separator+ String.valueOf(timestamp) + "_IRMap.jpg");
         if (pictureFile == null) {
             Log.d(TAG, "Error creating media file, check storage permissions: ");// e.getMessage());
             return;
