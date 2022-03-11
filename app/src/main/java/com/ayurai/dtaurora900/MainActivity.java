@@ -39,6 +39,8 @@ import com.deptrum.usblite.param.StreamType;
 import com.deptrum.usblite.param.TemperatureType;
 import com.deptrum.usblite.sdk.DeptrumSdkApi;
 
+import org.opencv.core.MatOfPoint;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -46,12 +48,16 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.bytedeco.javacv.FFmpegFrameRecorder;
+import org.bytedeco.javacv.FFmpegLogCallback;
+import org.bytedeco.javacv.Frame;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -115,6 +121,16 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean isInDoor = false;
     long globalTimeStamp;
+    final public String RGB="_RGBMAP.jpg";
+    final public String IR="_IRMAP.jpg";
+    final public String DEPTHMAP="_DEPTHMAP.jpg";
+    FFmpegFrameRecorder recorderRGB;
+    FFmpegFrameRecorder recorderDepth;
+    FFmpegFrameRecorder recorderIR;
+
+    String folderName;
+
+
 
     private static Handler mHandler = new Handler() {
         @Override
@@ -250,6 +266,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(initUI());
+
         mOpenExecutors = Executors.newSingleThreadExecutor();
         mOpenExecutors.execute(new Runnable() {
             @Override
@@ -276,12 +293,13 @@ public class MainActivity extends AppCompatActivity {
         long startTime = System.currentTimeMillis();
         DeptrumSdkApi.getApi().open(getApplicationContext(), new IDeviceListener() {
             @Override
-            public void onAttach() {
-
-            }
+            public void onAttach() {}
 
             @Override
             public void onDetach() {
+                BTMain btMain = new BTMain();
+                btMain.btSendCmd('0');
+                List<MatOfPoint> contours =null;
 
             }
 
@@ -298,6 +316,7 @@ public class MainActivity extends AppCompatActivity {
                             }
 
                             byte[] data = iFrame.getData();
+
 
                             final long timestamp = iFrame.getFrameStamp();
                             globalTimeStamp=timestamp;
@@ -511,30 +530,44 @@ public class MainActivity extends AppCompatActivity {
         btnGetInfo.setOnClickListener(mOnGetInfoListener);
         btnGetInfo.setOnLongClickListener(mOnGetInfoLongListener);
 
-        Button saveImageDepth= new Button(getApplicationContext());
-        saveImageDepth.setText("Save Depth Image");
-        saveImageDepth.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                storeImageDepth(globalTimeStamp,getDepthFrame());
-            }
-        });
-
-        Button saveImageRGB= new Button(getApplicationContext());
-        saveImageRGB.setText("Save RGB Image");
-        saveImageRGB.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                storeImageRGB(globalTimeStamp,getRGBFrame());
-            }
-        });
+//        Button saveImageDepth= new Button(getApplicationContext());
+//        saveImageDepth.setText("Save Depth Image");
+//        saveImageDepth.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                storeImageDepth(globalTimeStamp,getDepthFrame());
+//            }
+//        });
+//
+//        Button saveImageRGB= new Button(getApplicationContext());
+//        saveImageRGB.setText("Save RGB Image");
+//        saveImageRGB.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                storeImageRGB(globalTimeStamp,getRGBFrame());
+//            }
+//        });
 
         Button saveImageIR= new Button(getApplicationContext());
-        saveImageIR.setText("Save IR Image");
+        saveImageIR.setText("Save Sequence");
         saveImageIR.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                storeImageIR(globalTimeStamp,getIRFrame());
+//                storeImageIR(globalTimeStamp,getIRFrame(),IR);
+//                storeImageIR(globalTimeStamp,getRGBFrame(),RGB);
+//                storeImageIR(globalTimeStamp,getDepthFrame(),DEPTHMAP);
+                if(new File(Environment.getExternalStorageDirectory().toString()+"/OxyView/").exists()){
+                    folderName= String.valueOf(new File(Environment.getExternalStorageDirectory().toString()+"/OxyView/").listFiles().length+1);
+                    if(new File(Environment.getExternalStorageDirectory().toString()+"/OxyView/"+folderName).exists());
+                }
+//              TODO Follow https://stackoverflow.com/questions/28721396/convert-images-to-video-in-android
+//              TODO https://github.com/bytedeco/javacv/releases/tag/1.5.7 Source Library
+//              TODO https://stackoverflow.com/questions/40315349/how-to-create-a-video-from-an-array-of-images-in-android Refer for JUGAD WORK
+                recorderRGB = new FFmpegFrameRecorder(Environment.getExternalStorageDirectory().toString()+"/OxyView/"+folderName+"/video_RGB.mp4",400,400,0);
+                recorderDepth = new FFmpegFrameRecorder(Environment.getExternalStorageDirectory().toString()+"/OxyView/"+folderName+"/video_DEPTH.mp4",400,400,0);
+                recorderIR = new FFmpegFrameRecorder(Environment.getExternalStorageDirectory().toString()+"/OxyView/"+folderName+"/video_IR.mp4",400,400,0);
+
+
             }
         });
 
@@ -543,7 +576,6 @@ public class MainActivity extends AppCompatActivity {
         textParams.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, RelativeLayout.TRUE);
         btnExit.setLayoutParams(textParams);
         btnGetInfo.setLayoutParams(textParams);
-
 
         LinearLayout linearLayout = new LinearLayout(getApplicationContext());
         linearLayout.setOrientation(LinearLayout.VERTICAL);
@@ -561,8 +593,8 @@ public class MainActivity extends AppCompatActivity {
         linearLayout.addView(tv_debug);
         linearLayout.addView(btnExit);
         linearLayout.addView(btnGetInfo);
-        linearLayout.addView(saveImageDepth);
-        linearLayout.addView(saveImageRGB);
+//        linearLayout.addView(saveImageDepth);
+//        linearLayout.addView(saveImageRGB);
         linearLayout.addView(saveImageIR);
 
         mFaceView.setLayoutParams(new LinearLayout.LayoutParams(displayWidth , displayHeight));
@@ -996,52 +1028,12 @@ public class MainActivity extends AppCompatActivity {
             invalidate();
         }
     }
-    private void storeImageDepth(long timestamp,Bitmap image) {
-        File folder=new File(Environment.getExternalStorageDirectory() + File.separator+"Aurora900" );
-        folder.mkdirs();
-        File pictureFile = new File(Environment.getExternalStorageDirectory() + File.separator+"Aurora900" + File.separator+ String.valueOf(timestamp) + "_depthMap.jpg");
-        if (pictureFile == null) {
-            Log.d(TAG, "Error creating media file, check storage permissions: ");// e.getMessage());
-            return;
-        }
-        Log.d(TAG, "storeImage: "+pictureFile);
-        try {
-            FileOutputStream fos = new FileOutputStream(pictureFile);
-            image.compress(Bitmap.CompressFormat.PNG, 90, fos);
-            fos.close();
-        } catch (FileNotFoundException e) {
-            Log.d(TAG, "File not found: " + e.getMessage());
-        } catch (IOException e) {
-            Log.d(TAG, "Error accessing file: " + e.getMessage());
-        }
-        Log.d(TAG, "storeImage: FileSaved");
-    }
 
-    private void storeImageRGB(long timestamp,Bitmap image) {
-        File folder=new File(Environment.getExternalStorageDirectory() + File.separator+"Aurora900" );
-        folder.mkdirs();
-        File pictureFile = new File(Environment.getExternalStorageDirectory() + File.separator+"Aurora900" + File.separator+ String.valueOf(timestamp) + "_RGBMap.jpg");
-        if (pictureFile == null) {
-            Log.d(TAG, "Error creating media file, check storage permissions: ");// e.getMessage());
-            return;
-        }
-        Log.d(TAG, "storeImage: "+pictureFile);
-        try {
-            FileOutputStream fos = new FileOutputStream(pictureFile);
-            image.compress(Bitmap.CompressFormat.PNG, 90, fos);
-            fos.close();
-        } catch (FileNotFoundException e) {
-            Log.d(TAG, "File not found: " + e.getMessage());
-        } catch (IOException e) {
-            Log.d(TAG, "Error accessing file: " + e.getMessage());
-        }
-        Log.d(TAG, "storeImage: FileSaved");
-    }
 
-    private void storeImageIR(long timestamp,Bitmap image) {
+    private void storeImageIR(long timestamp,Bitmap image,String filename) {
         File folder=new File(Environment.getExternalStorageDirectory() + File.separator+"Aurora900" );
         folder.mkdirs();
-        File pictureFile = new File(Environment.getExternalStorageDirectory() + File.separator+"Aurora900" + File.separator+ String.valueOf(timestamp) + "_IRMap.jpg");
+        File pictureFile = new File(Environment.getExternalStorageDirectory() + File.separator+"Aurora900" + File.separator+ String.valueOf(timestamp) + filename);
         if (pictureFile == null) {
             Log.d(TAG, "Error creating media file, check storage permissions: ");// e.getMessage());
             return;
